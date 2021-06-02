@@ -19,5 +19,3 @@ api = Api(app)
 api.add_resource(GoalList, "/")
 api.add_resource(User, "/users")
 api.add_resource(Goal, "/<int:id>")
-if __name__ == '__main__':
-    app.run(port=6000)
