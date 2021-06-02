@@ -1,7 +1,4 @@
-
-from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
+from app.app import db
 # import datetime
 
 class GoalModel(db.Model):
@@ -21,6 +18,6 @@ class GoalModel(db.Model):
 
     def update():
         db.session.commit()
-        
+
     def __repr__(self):
         return f"Goal(title = { self.title }, type = { self.type }, description = { self.description }, currency_target = { self.currency_target }, created_at = { self.created_at }, updated_at = { self.updated_at })"

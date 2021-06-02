@@ -1,6 +1,11 @@
 
+from resources import user
+from models.user import UserModel
+from flask.globals import request
 from models.goal import GoalModel
 from flask_restful import Resource, abort, marshal_with, reqparse, fields
+from flask_httpauth import HTTPBasicAuth
+auth = HTTPBasicAuth()
 
 parser = reqparse.RequestParser()
 resource_fields = {
@@ -14,6 +19,15 @@ resource_fields = {
 
 
 class GoalList(Resource):
+    @auth.verify_password
+    def verify_password(username, password):
+        user = UserModel.query.filter_by(username = username).first()
+        if not user or not user.verify_password(password):
+            return False
+        user.User = user
+        return True
+
+    @auth.login_required
     @marshal_with(resource_fields)
     def get(self):
         result = GoalModel.query.all()
@@ -21,6 +35,7 @@ class GoalList(Resource):
             abort(404, method="GET", message="No data here")
         return result
     
+    @auth.login_required
     @marshal_with(resource_fields)
     def post(self):
         # parser.add_argument("id", help="id of goals is required", required=True)
@@ -34,6 +49,15 @@ class GoalList(Resource):
         return result, 201
 
 class Goal(Resource):
+    @auth.verify_password
+    def verify_password(username, password):
+        user = UserModel.query.filter_by(username = username).first()
+        if not user or not user.verify_password(password):
+            return False
+        user.User = user
+        return True
+
+    @auth.login_required
     @marshal_with(resource_fields)
     def get(self, id):
         result = GoalModel.query.filter_by(id=id).first()
@@ -41,6 +65,7 @@ class Goal(Resource):
             abort (404, method="GET", message="Data isn't exists")
         return result
 
+    @auth.login_required
     @marshal_with(resource_fields)
     def patch(self, id):
         parser.add_argument("title", help="Title of goals")
@@ -65,6 +90,7 @@ class Goal(Resource):
 
         return result
 
+    @auth.login_required
     def delete(self, id):
         GoalModel.query.filter_by(id=id).delete()
         return {"text" : "success"}, 204
