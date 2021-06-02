@@ -19,5 +19,5 @@ class User(Resource):
         user.hash_password(args['password'])
         UserModel.save(user)
 
-        return user
+        return user, 201
 
