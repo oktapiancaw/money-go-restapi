@@ -1,4 +1,5 @@
 from sqlalchemy import ForeignKey
+from sqlalchemy.dialects.mysql import BIGINT
 from app.app import db
 # import datetime
 
@@ -10,7 +11,7 @@ class GoalModel(db.Model):
     title = db.Column(db.String(255))
     tags = db.Column(db.String(100))
     description = db.Column(db.String)
-    currency_target = db.Column(db.BigInteger)
+    currency_target = db.Column(BIGINT(unsigned=True))
     start_date = db.Column(db.DateTime, default=db.func.current_timestamp())
     end_date = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())

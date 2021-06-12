@@ -3,8 +3,14 @@ from models.user import UserModel
 from flask.globals import request
 from models.goal import GoalModel
 from templates.result import ResultData
-from flask_restful import Resource, abort, marshal_with, reqparse, fields
+from flask import abort
+from flask_restful import Resource, marshal_with, reqparse, fields
 from flask_httpauth import HTTPBasicAuth
+
+import json
+
+
+from datetime import datetime
 auth = HTTPBasicAuth()
 
 parser = reqparse.RequestParser()
@@ -36,17 +42,17 @@ class GoalList(Resource, ResultData):
         return True
 
     @auth.login_required
-    @marshal_with(return_fields)
+    # @marshal_with(return_fields)
     def get(self):
         data = GoalModel.query.all()
         if not data:
             abort(404, method="GET", message="No data here")
-        return ResultData.returnApi(200, 'All data has been loaded', data), 200
+        return request.username
     
     @auth.login_required
-    @marshal_with(return_fields)
+    # @marshal_with(return_fields)
     def post(self):
-        # parser.add_argument("id", help="id of goals is required", required=True)
+        user_id = UserModel.query.filter_by(username=request.authorization.username).with_entities(UserModel.id)
         parser.add_argument("title", help="Title of goals is required", required=True)
         parser.add_argument("tags", help="Tags of goal")
         parser.add_argument("start_date", help="Start of goal")
@@ -56,22 +62,30 @@ class GoalList(Resource, ResultData):
         args = parser.parse_args()
         if args['title'] :
             if len(args['title']) >= 255 :
-                abort(400, message="currency target is to long")
+                abort(400, message="currency target is too long")
+            if len(args['title']) <= 4 :
+                abort(400, message="title is too short")
 
         if args['tags'] :
-            if len(args['tags']) >= 200 :
-                abort(400, message="currency target is to long")
+            if len(args['tags']) >= 100 :
+                abort(400, message="currency target is too long")
+            if len(args['tags']) <= 2 :
+                abort(400, message="tags is too short")
+
+        if args['end_date']:
+            if int(datetime.strptime(args['end_date'], '%Y-%m-%d').timestamp()) <= int(datetime.now().timestamp()):
+                abort(400, "Cant back to past!")
 
         if args['currency_target'] :
-            if args['currency_target'] >= 2147483647 :
-                abort(400, message="currency target is to much")
+            if int(args['currency_target']) <= 0:
+                abort(400, "currency target is too low")
 
-            if args['currency_target'] <= -2147483647 :
-                abort(400, message="currency target is to bits")
-        
-        data = GoalModel(title=args['title'], tags=args['tags'], description=args['description'], start_date=args['start_date'], endDate=args['endDate'], currency_target=args['currency_target'])
-        GoalModel.save(data)
-        return ResultData.returnApi(201, 'Your data has been created!', data), 201
+            if int(args['currency_target']) >= 10000000000:
+                abort(400, "currency target is too high")
+        return "yea"
+        # data = GoalModel(user_id=user_id, title=args['title'], tags=args['tags'], description=args['description'], start_date=args['start_date'], end_date=args['end_date'], currency_target=args['currency_target'])
+        # GoalModel.save(data)
+        # return ResultData.returnApi(201, 'Your data has been created!', data), 201
 
 class Goal(Resource, ResultData):
     @auth.verify_password
@@ -93,36 +107,44 @@ class Goal(Resource, ResultData):
     @auth.login_required
     @marshal_with(return_fields)
     def patch(self, id):
-        parser.add_argument("title", help="Title of goals")
+        parser.add_argument("title", help="Title of goals is required")
         parser.add_argument("tags", help="Tags of goal")
         parser.add_argument("end_date", help="End of goal")
         parser.add_argument("description", help="Description of goals")
         parser.add_argument("currency_target", help="Currency target of goals")
         args = parser.parse_args()
         result = GoalModel.query.filter_by(id=id).first()
+        user_id = UserModel.query.filter_by(username=request.authorization.username).with_entities(UserModel.id)
+        if result.user_id != user_id:
+            abort(400, message="Goal isn't yours")
+            
         if not result:
             abort(400, message="Goal isn't exists, cant update")
 
         if args['title']:
             if len(args['title']) >= 255 :
-                abort(400, message="currency target is to long")
+                abort(400, message="title is too long")
+            if len(args['title']) <= 4 :
+                abort(400, message="title is too short")
             result.title = args['title']
 
         if args['tags']:
+            if len(args['tags']) >= 100 :
+                abort(400, message="tags is too long")
+            if len(args['tags']) <= 2 :
+                abort(400, message="tags is too short")
             result.tags = args['tags']
-            if len(args['tags']) >= 200 :
-                abort(400, message="currency target is to long")
 
         if args['description']:
             result.description = args['description']
 
         if args['currency_target']:
-            result.currency_target = args['currency_target']
-            if args['currency_target'] >= 2147483647 :
-                abort(400, message="currency target is to much")
+            if int(args['currency_target']) <= 0:
+                abort(400, "currency target is too low")
 
-            if args['currency_target'] <= -2147483647 :
-                abort(400, message="currency target is to bits")
+            if int(args['currency_target']) >= 10000000000:
+                abort(400, "currency target is too high")
+            result.currency_target = args['currency_target']
 
         GoalModel.update()
 
