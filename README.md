@@ -19,12 +19,11 @@
 
 ## Pendaftaran
   Untuk melakukan pendaftaran pada aplikasi ini silahkan akses url berikut :
-  
 ```sh
 http://moneygoapi.herokuapp.com/users/
 ```
-  Dengan data sebagai berikut :
 
+  Dengan data sebagai berikut :
 ```sh
 {
   "username" : "username kamu",
@@ -35,10 +34,8 @@ http://moneygoapi.herokuapp.com/users/
 ## Penggunaan
   Dalam aplikasi ini anda dapat mengelola 2 data yaitu goal dan money sesuai dengan id akun anda, pastikan anda menggunakan basic authentication ketika menkonsumsi API ini
 
-<br/>
-### Goals - Get
+### [ Method : GET ] - Goals
   Berikut urlnya :
-  
 ```sh
 http://moneygoapi.herokuapp.com/
 ```
