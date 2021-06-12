@@ -1,3 +1,4 @@
+from resources.manage import ManageList
 from flask_migrate import Migrate
 from flask_restful import Api, request
 from resources.goal import Goal, GoalList
@@ -16,6 +17,7 @@ migrate = Migrate(app, db)
 
 # API
 api = Api(app)
-api.add_resource(GoalList, "/")
+api.add_resource(GoalList, "/goals")
+api.add_resource(ManageList, "/manages")
 api.add_resource(User, "/users")
-api.add_resource(Goal, "/<int:id>")
+api.add_resource(Goal, "/goals/<int:id>")
