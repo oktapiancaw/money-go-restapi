@@ -1,14 +1,11 @@
-from resources import user
+from models.manage import ManageModel
 from models.user import UserModel
 from flask.globals import request
 from models.goal import GoalModel
-from templates.result import ResultData
-from flask import abort
-from flask_restful import Resource, marshal_with, reqparse, fields
+from templates.result import ResultData as resultTemplate
+from flask_restful import Resource, abort, marshal_with, reqparse, fields
 from flask_httpauth import HTTPBasicAuth
-
-import json
-
+from app.app import db
 
 from datetime import datetime
 auth = HTTPBasicAuth()
@@ -31,7 +28,7 @@ return_fields = {
 }
 
 
-class GoalList(Resource, ResultData):
+class GoalList(Resource, resultTemplate):
     
     @auth.verify_password
     def verify_password(username, password):
@@ -42,12 +39,12 @@ class GoalList(Resource, ResultData):
         return True
 
     @auth.login_required
-    # @marshal_with(return_fields)
+    @marshal_with(return_fields)
     def get(self):
         data = GoalModel.query.all()
         if not data:
             abort(404, method="GET", message="No data here")
-        return request.username
+        return resultTemplate.returnApi(200, 'All data has been loaded', data)
     
     @auth.login_required
     # @marshal_with(return_fields)
@@ -74,7 +71,7 @@ class GoalList(Resource, ResultData):
 
         if args['end_date']:
             if int(datetime.strptime(args['end_date'], '%Y-%m-%d').timestamp()) <= int(datetime.now().timestamp()):
-                abort(400, "Cant back to past!")
+                abort(400, message="Cant back to past!")
 
         if args['currency_target'] :
             if int(args['currency_target']) <= 0:
@@ -82,12 +79,12 @@ class GoalList(Resource, ResultData):
 
             if int(args['currency_target']) >= 10000000000:
                 abort(400, "currency target is too high")
-        return "yea"
-        # data = GoalModel(user_id=user_id, title=args['title'], tags=args['tags'], description=args['description'], start_date=args['start_date'], end_date=args['end_date'], currency_target=args['currency_target'])
-        # GoalModel.save(data)
-        # return ResultData.returnApi(201, 'Your data has been created!', data), 201
+        
+        data = GoalModel(user_id=user_id, title=args['title'], tags=args['tags'], description=args['description'], start_date=args['start_date'], end_date=args['end_date'], currency_target=args['currency_target'])
+        GoalModel.save(data)
+        return resultTemplate.returnApi(201, 'Your data has been created!', data), 201
 
-class Goal(Resource, ResultData):
+class Goal(Resource, resultTemplate):
     @auth.verify_password
     def verify_password(username, password):
         user = UserModel.query.filter_by(username = username).first()
@@ -102,7 +99,7 @@ class Goal(Resource, ResultData):
         result = GoalModel.query.filter_by(id=id).first()
         if not result:
             abort (404, method="GET", message="Data isn't exists")
-        return ResultData.returnApi(200, 'The data is founded', result), 200
+        return resultTemplate.returnApi(200, 'The data is founded', result), 200
 
     @auth.login_required
     @marshal_with(return_fields)
@@ -148,9 +145,9 @@ class Goal(Resource, ResultData):
 
         GoalModel.update()
 
-        return ResultData.returnApi(201, 'The data has been updated!', result), 201
+        return resultTemplate.returnApi(201, 'The data has been updated!', result), 201
 
     @auth.login_required
     def delete(self, id):
         GoalModel.query.filter_by(id=id).delete()
-        return ResultData.returnApi(200, 'Data has been deleted!', ''), 204
+        return resultTemplate.returnApi(200, 'Data has been deleted!', ''), 204
