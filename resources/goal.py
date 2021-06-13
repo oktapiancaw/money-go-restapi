@@ -6,7 +6,6 @@ from templates.result import ResultData as resultTemplate
 from flask_restful import Resource, abort, marshal_with, reqparse, fields
 from flask_httpauth import HTTPBasicAuth
 from datetime import datetime
-from sqlalchemy.sql import func
 from app.app import db
 
 auth = HTTPBasicAuth()
@@ -26,7 +25,9 @@ resource_fields = {
   'start_date' : fields.DateTime(attribute='start_date'),
   'end_date' : fields.DateTime(attribute='end_date'),
   'description' : fields.String(attribute='description'),
-  'currency_target' : fields.Integer(attribute='currency_target')
+  'currency_target' : fields.Integer(attribute='currency_target'),
+  'currency_now' : fields.Integer(attribute='currency_now'),
+  'status' : fields.String(attribute='status', default='unfinished')
 }
 return_fields = {
   'status': fields.Integer(attribute='status'),
@@ -54,6 +55,11 @@ class GoalList(Resource, resultTemplate):
     data = GoalModel.query.all()
     if not data:
       abort(404, method="GET", message="No data here")
+    for x in data:
+      x.currency_now = ManageModel.getAllNominal(x.id)
+      if x.currency_now == x.currency_target:
+        x.status = 'finished'
+    
     return resultTemplate.returnApi(200, 'All data has been loaded', data)
   
   # [ Method : "POST" ] - Add a Data 
@@ -115,10 +121,12 @@ class Goal(Resource, resultTemplate):
       data = GoalModel.query.filter_by(id=id).first()
       if not data:
         abort (404, method="GET", message="Data isn't exists")
-      
 
-      # anu =  db.session.query(func.sum(ManageModel.nominal).label("data")).filter_by(goal_id=id).first()[0]
-      # data.
+      # Add currency now
+      anu =  ManageModel.getAllNominal(id)
+      data.currency_now = anu
+      if data.currency_now == data.currency_target:
+        data.status = 'finished'
       # Return the data
       return resultTemplate.returnApi(200, 'The data is founded', data), 200
 

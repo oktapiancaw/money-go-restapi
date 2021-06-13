@@ -43,7 +43,7 @@ class ManageList(Resource, resultTemplate):
     return resultTemplate.returnApi(200, 'All data has been loaded', data), 200
 
   @auth.login_required
-  @marshal_with(return_fields)
+  # @marshal_with(return_fields)
   def post(self):
     parser.add_argument('goal_id', help='Goal id is required', required=True)
     parser.add_argument('nominal', type=int, help='How many you save money for the goals')
@@ -51,6 +51,11 @@ class ManageList(Resource, resultTemplate):
     parser.add_argument('status', choices=('0','1','2'), help='Invalid status management')
     args = parser.parse_args()
     goal = GoalModel.query.filter_by(id=args['goal_id']).first()
+    total_currency = ManageModel.getAllNominal(goal.id)
+    if total_currency >= goal.currency_target:
+      if args['status'] == '1':
+        abort(404, message="your goal is finished")
+      
     if not goal:
       abort(404, message="Goal isn't exist!")
 
@@ -90,3 +95,11 @@ class Manage(Resource, resultTemplate):
     if not data:
       abort (404, method="GET", message="Data isn't exists")
     return resultTemplate.returnApi(200, 'The data is founded', data), 200
+
+  def delete(self, id):
+    data = ManageModel.query.filter_by(id=id)
+    if not data.first():
+      abort (404, method="GET", message="Data isn't exists")
+
+    data.delete()
+    return resultTemplate.returnApi(200, 'Data has been deleted!', ''), 204

@@ -1,5 +1,6 @@
 from sqlalchemy import ForeignKey
 from app.app import db
+from sqlalchemy.sql import func
 
 class ManageModel(db.Model):
   __tablename__ = 'manage'
@@ -13,6 +14,9 @@ class ManageModel(db.Model):
   def save(data):
     db.session.add(data)
     db.session.commit()
+
+  def getAllNominal(id):
+      return db.session.query(func.sum(ManageModel.nominal).label("data")).filter_by(goal_id=id, status=1).first()[0]
 
   def update():
     db.session.commit()
