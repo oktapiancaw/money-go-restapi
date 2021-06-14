@@ -1,14 +1,23 @@
 from models.user import UserModel
-from flask.globals import request
 from models.manage import ManageModel
 from models.goal import GoalModel
+from flask.globals import request
 from templates.result import ResultData as resultTemplate
-from flask_restful import Resource, abort, marshal_with, reqparse, fields
+from flask_restful import Resource, marshal_with, marshal, reqparse, fields
 from flask_httpauth import HTTPBasicAuth
 from datetime import datetime
+
 auth = HTTPBasicAuth()
 
+# Basic Validation for Request & Scaffold Request
 parser = reqparse.RequestParser()
+parser.add_argument('goal_id', help='Goal id is required', required=True)
+parser.add_argument('nominal', type=int, help='How many you save money for the goals')
+parser.add_argument('date', help='When u insert this management')
+parser.add_argument('status', choices=('0','1','2'), help='Invalid status management')
+
+
+# Return Template
 resource_fields = {
   'id' : fields.Integer(attribute='id'),
   'goal_id': fields.Integer(attribute='goal_id'),
@@ -18,14 +27,17 @@ resource_fields = {
 }
 
 return_fields = {
-  'status': fields.Integer(attribute='status'),
-  'type': fields.String(attribute='typeRequest'),
   'url': fields.String(attribute='urlRequest'),
+  'type': fields.String(attribute='typeRequest'),
+  'status_code': fields.Integer(attribute='status_code'),
+  'status': fields.String(attribute='statusRequest'),
+  'message': fields.String(attribute='message'),
   'data': fields.Nested(resource_fields)
 }
 
-
 class ManageList(Resource, resultTemplate):
+
+  # Authentication
   @auth.verify_password
   def verify_password(username, password):
     user = UserModel.query.filter_by(username = username).first()
@@ -34,54 +46,67 @@ class ManageList(Resource, resultTemplate):
     user.User = user
     return True
   
+
+  # [ Method : "GET" ] - Get all Data 
   @auth.login_required
-  @marshal_with(return_fields)
   def get(self):
     data = ManageModel.query.all()
-    if not data:
-      abort(404, method="GET", message="No data here")
-    return resultTemplate.returnApi(200, 'All data has been loaded', data), 200
 
+    # Check if exist
+    if not data:
+      return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
+    
+    # Return data
+    return marshal(resultTemplate.returnApi(200, 'All data has been loaded', data), return_fields), 200
+
+
+  # [ Method : "POST" ] - Add a Data 
   @auth.login_required
-  # @marshal_with(return_fields)
   def post(self):
-    parser.add_argument('goal_id', help='Goal id is required', required=True)
-    parser.add_argument('nominal', type=int, help='How many you save money for the goals')
-    parser.add_argument('date', help='When u insert this management')
-    parser.add_argument('status', choices=('0','1','2'), help='Invalid status management')
     args = parser.parse_args()
     goal = GoalModel.query.filter_by(id=args['goal_id']).first()
+    
+    # Check Goal if exist
+    if not goal:
+      return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
+    
+    # Get Total currency now
     total_currency = ManageModel.getAllNominal(goal.id)
+
+    # Currency validation
     if total_currency >= goal.currency_target:
       if args['status'] == '1':
-        abort(404, message="your goal is finished")
-      
-    if not goal:
-      abort(404, message="Goal isn't exist!")
+        return resultTemplate.returnMessage(400, 'youre already finish this goal', 'failed'), 400
 
+    # If already create today
     alreadyManage = ManageModel.query.filter_by(date=args['date'], goal_id=args['goal_id']).first()
     if alreadyManage:
-      abort(400, message="You already add data today")
+      return resultTemplate.returnMessage(400, 'You already add data today', 'failed'), 400
 
+    # Date validation
     if args['date']:
       if datetime.strptime(args['date'], '%Y-%m-%d').month > 12 and datetime.strptime(args['date'], '%Y-%m-%d').month < 1:
-        abort(400, message="Invalid Month")
+        return resultTemplate.returnMessage(400, 'Invalid month', 'failed'), 400
 
       if datetime.strptime(args['date'], '%Y-%m-%d').day > 31 and datetime.strptime(args['date'], '%Y-%m-%d').day < 1:
-        abort(400, message="Invalid Day")
+        return resultTemplate.returnMessage(400, 'Invalid date', 'failed'), 400
 
+    # Nominal validation
     if args['nominal']:
       if int(args['nominal']) < 0:
-        abort(400, message="nominal is too low")
+        return resultTemplate.returnMessage(400, 'Nominal is too low', 'failed'), 400
 
-      if int(args['nominal']) >= 10000000000:
-        abort(400, message="nominal is too high")
+      if int(args['nominal']) >= total_currency or int(args['nominal']) >= 10000000000:
+        return resultTemplate.returnMessage(400, 'Nominal is too high', 'failed'), 400
 
+    # Save the request to database
     data = ManageModel(goal_id=args['goal_id'], nominal=args['nominal'],date=args['date'], status=args['status'])
     ManageModel.save(data)
-    return resultTemplate.returnApi(201, 'Manage has been created', data), 201
+    return marshal(resultTemplate.returnApi(201, 'Manage has been created', data), return_fields), 201
 
-class Manage(Resource, resultTemplate):
+class ManageData(Resource, resultTemplate):
+
+  #Authentication
   @auth.verify_password
   def verify_password(username, password):
     user = UserModel.query.filter_by(username = username).first()
@@ -90,16 +115,29 @@ class Manage(Resource, resultTemplate):
     user.User = user
     return True
 
+
+  # [ Method : "GET" ] - Get data by id
+  @auth.login_required
   def get(self, id):
     data = ManageModel.query.filter_by(id=id).first()
-    if not data:
-      abort (404, method="GET", message="Data isn't exists")
-    return resultTemplate.returnApi(200, 'The data is founded', data), 200
 
+    # Check if exist
+    if not data:
+      return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
+    
+    # Return the data
+    return marshal(resultTemplate.returnApi(200, 'The data is founded', data), return_fields), 200
+
+
+  # [ Method : "DELETE" ] - Delete a Data 
+  @auth.login_required
   def delete(self, id):
     data = ManageModel.query.filter_by(id=id)
-    if not data.first():
-      abort (404, method="GET", message="Data isn't exists")
 
+    # Check if exist
+    if not data.first():
+      return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
+
+    # Delete
     data.delete()
-    return resultTemplate.returnApi(200, 'Data has been deleted!', ''), 204
+    return resultTemplate.returnMessage(200, 'Data has been deleted!'), 204

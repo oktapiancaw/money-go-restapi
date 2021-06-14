@@ -3,14 +3,14 @@ from models.user import UserModel
 from models.goal import GoalModel
 from flask.globals import request
 from templates.result import ResultData as resultTemplate
-from flask_restful import Resource, abort, marshal_with, reqparse, fields
+from flask_restful import Resource, marshal_with, reqparse, fields, marshal
 from flask_httpauth import HTTPBasicAuth
 from datetime import datetime
 from app.app import db
 
 auth = HTTPBasicAuth()
 
-# Basic Validation for Request
+# Basic Validation for Request & Scaffold Request
 parser = reqparse.RequestParser()
 parser.add_argument("tags", help="Tags of goal")
 parser.add_argument("start_date", help="Start of goal")
@@ -30,12 +30,13 @@ resource_fields = {
   'status' : fields.String(attribute='status', default='unfinished')
 }
 return_fields = {
-  'status': fields.Integer(attribute='status'),
-  'type': fields.String(attribute='typeRequest'),
   'url': fields.String(attribute='urlRequest'),
+  'type': fields.String(attribute='typeRequest'),
+  'status_code': fields.Integer(attribute='status_code'),
+  'status': fields.String(attribute='statusRequest'),
+  'message': fields.String(attribute='message'),
   'data': fields.Nested(resource_fields)
 }
-
 
 class GoalList(Resource, resultTemplate):
 
@@ -50,21 +51,24 @@ class GoalList(Resource, resultTemplate):
 
   # [ Method : "GET" ] - Get all Data 
   @auth.login_required
-  @marshal_with(return_fields)
   def get(self):
     data = GoalModel.query.all()
+
+    # Check if exist
     if not data:
-      abort(404, method="GET", message="No data here")
+      return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
+
+    # Set currency
     for x in data:
       x.currency_now = ManageModel.getAllNominal(x.id)
       if x.currency_now == x.currency_target:
         x.status = 'finished'
     
-    return resultTemplate.returnApi(200, 'All data has been loaded', data)
+    # Return data
+    return marshal(resultTemplate.returnApi(200, 'All data has been loaded', data), return_fields), 200
   
   # [ Method : "POST" ] - Add a Data 
   @auth.login_required
-  @marshal_with(return_fields)
   def post(self):
     parser.add_argument("title", help="Title of goals is required", required=True)
     parser.add_argument("end_date", help="End of goal", required=True)
@@ -73,35 +77,35 @@ class GoalList(Resource, resultTemplate):
     # Title Validation
     if args['title'] :
       if len(args['title']) >= 255 :
-        abort(400, message="currency target is too long")
+        return resultTemplate.returnMessage(400, 'Title is too long', 'failed'), 400
       if len(args['title']) <= 4 :
-        abort(400, message="title is too short")
+        return resultTemplate.returnMessage(400, 'Title is too short', 'failed'), 400
 
     # Tags Validation
     if args['tags'] :
       if len(args['tags']) >= 100 :
-        abort(400, message="currency target is too long")
+        return resultTemplate.returnMessage(400, 'Tags is too long', 'failed'), 400
       if len(args['tags']) <= 2 :
-        abort(400, message="tags is too short")
+        return resultTemplate.returnMessage(400, 'Tags is too short', 'failed'), 400
 
     # End Date Validation
     if args['end_date']:
       if int(datetime.strptime(args['end_date'], '%Y-%m-%d').timestamp()) <= int(datetime.now().timestamp()):
-        abort(400, message="Cant back to past!")
+        return resultTemplate.returnMessage(400, 'Cannot back to past month', 'failed'), 400
 
     # Currency Target Validation
     if args['currency_target'] :
       if int(args['currency_target']) <= 0:
-        abort(400, "currency target is too low")
+        return resultTemplate.returnMessage(400, 'Currency target is too low', 'failed'), 400
 
       if int(args['currency_target']) >= 10000000000:
-        abort(400, "currency target is too high")
+        return resultTemplate.returnMessage(400, 'Currency target is too high', 'failed'), 400
 
     # Save the request to database
     user_id = UserModel.query.filter_by(username=request.authorization.username).with_entities(UserModel.id)
     data = GoalModel(user_id=user_id, title=args['title'], tags=args['tags'], description=args['description'], start_date=args['start_date'], end_date=args['end_date'], currency_target=args['currency_target'])
     GoalModel.save(data)
-    return resultTemplate.returnApi(201, 'Your data has been created!', data), 201
+    return marshal(resultTemplate.returnApi(201, 'Your data has been created!', data), return_fields), 201
 
 class Goal(Resource, resultTemplate):
     # Authentication
@@ -115,24 +119,24 @@ class Goal(Resource, resultTemplate):
 
   # [ Method : "GET" ] - Get a Data 
     @auth.login_required
-    @marshal_with(return_fields)
     def get(self, id):
-      # Filter data
       data = GoalModel.query.filter_by(id=id).first()
+
+      # Check if exist
       if not data:
-        abort (404, method="GET", message="Data isn't exists")
+        return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
 
       # Add currency now
       anu =  ManageModel.getAllNominal(id)
       data.currency_now = anu
       if data.currency_now == data.currency_target:
         data.status = 'finished'
+
       # Return the data
-      return resultTemplate.returnApi(200, 'The data is founded', data), 200
+      return marshal(resultTemplate.returnApi(200, 'The data is founded', data), return_fields), 200
 
   # [ Method : "PATCH" ] - Update a Data 
     @auth.login_required
-    @marshal_with(return_fields)
     def patch(self, id):
       parser.add_argument("title", help="Title of goals is required")
       parser.add_argument("end_date", help="End of goal")
@@ -142,26 +146,26 @@ class Goal(Resource, resultTemplate):
       # Filter if not the owner
       user_id = UserModel.query.filter_by(username=request.authorization.username).with_entities(UserModel.id)
       if result.user_id != user_id:
-        abort(400, message="Goal isn't yours")
+        return resultTemplate.returnMessage(400, "This goal isn't your own", 'failed'), 400
       
       # If data is'nt exist
       if not result:
-        abort(400, message="Goal isn't exists, cant update")
+        return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
 
       # Title validation
       if args['title']:
         if len(args['title']) >= 255 :
-          abort(400, message="title is too long")
+          return resultTemplate.returnMessage(400, 'Title is too long', 'failed'), 400
         if len(args['title']) <= 4 :
-          abort(400, message="title is too short")
+          return resultTemplate.returnMessage(400, 'Title is too short', 'failed'), 400
         result.title = args['title']
 
       # Tags validation
       if args['tags']:
         if len(args['tags']) >= 100 :
-          abort(400, message="tags is too long")
+          return resultTemplate.returnMessage(400, 'Tags is too long', 'failed'), 400
         if len(args['tags']) <= 2 :
-          abort(400, message="tags is too short")
+          return resultTemplate.returnMessage(400, 'Tags is too short', 'failed'), 400
         result.tags = args['tags']
 
       # Insert description
@@ -171,23 +175,24 @@ class Goal(Resource, resultTemplate):
       # Currency target validation
       if args['currency_target']:
         if int(args['currency_target']) <= 0:
-            abort(400, "currency target is too low")
+          return resultTemplate.returnMessage(400, 'Currency target is too low', 'failed'), 400
 
         if int(args['currency_target']) >= 10000000000:
-          abort(400, "currency target is too high")
+          return resultTemplate.returnMessage(400, 'Currency target is too high', 'failed'), 400
         result.currency_target = args['currency_target']
 
       # Update data
       GoalModel.update()
-      return resultTemplate.returnApi(201, 'The data has been updated!', result), 201
+      return marshal(resultTemplate.returnApi(201, 'The data has been updated!', result), return_fields), 201
 
     @auth.login_required
     def delete(self, id):
-      # Filter data
       data = GoalModel.query.filter_by(id=id)
+
+      # Check if exist
       if not data.first():
-        abort(404, message="data isn't exist!")
+        return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
         
       # Delete
       data.delete()
-      return resultTemplate.returnApi(200, 'Data has been deleted!', ''), 204
+      return resultTemplate.returnMessage(200, 'Data has been deleted!'), 204
