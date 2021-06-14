@@ -56,7 +56,7 @@ class GoalList(Resource, resultTemplate):
 
     # Check if exist
     if not data:
-      return resultTemplate.returnMessage(404, "Data isn't exist!", 'failed'), 404
+      return resultTemplate.returnMessage(404, "No data in here", 'failed'), 404
 
     # Set currency
     for x in data:
@@ -195,4 +195,4 @@ class Goal(Resource, resultTemplate):
         
       # Delete
       data.delete()
-      return resultTemplate.returnMessage(200, 'Data has been deleted!'), 204
+      return resultTemplate.returnMessage(204, 'Data has been deleted!'), 204
