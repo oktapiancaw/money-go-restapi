@@ -17,6 +17,7 @@ class Config(object):
         url=POSTGRES_URL,
         db=POSTGRES_DB)
 
+
     # Silence the deprecation warning
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
