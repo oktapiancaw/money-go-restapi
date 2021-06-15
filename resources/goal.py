@@ -138,8 +138,8 @@ class Goal(Resource, resultTemplate):
   # [ Method : "PATCH" ] - Update a Data 
     @auth.login_required
     def patch(self, id):
-      parser.add_argument("title", help="Title of goals is required")
-      parser.add_argument("end_date", help="End of goal")
+      parser.add_argument("title", help="Title of goals is required", required=False)
+      parser.add_argument("end_date", help="End of goal", required=False)
       args = parser.parse_args()
       result = GoalModel.query.filter_by(id=id).first()
 
