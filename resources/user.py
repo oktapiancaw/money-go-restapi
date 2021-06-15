@@ -1,5 +1,6 @@
 from models.user import UserModel
 from flask_restful import Resource, abort, marshal, reqparse, fields
+from templates.result import ResultData as resultTemplate
 
 resource_fields = {
     'id' : fields.Integer,
@@ -22,7 +23,7 @@ class User(Resource, resultTemplate):
         args = parser.parse_args()
         if UserModel.query.filter_by(username=args['username']).first() is not None:
             return resultTemplate.returnMessage(400, 'Username already used', 'failed'), 201
-            
+
         user = UserModel(username=args['username'])
         user.hash_password(args['password'])
         UserModel.save(user)
