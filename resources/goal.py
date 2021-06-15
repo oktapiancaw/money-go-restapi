@@ -144,7 +144,7 @@ class Goal(Resource, resultTemplate):
       result = GoalModel.query.filter_by(id=id).first()
 
       # Filter if not the owner
-      user_id = UserModel.query.filter_by(username=request.authorization.username).with_entities(UserModel.id)
+      user_id = UserModel.query.filter_by(username=request.authorization.username).first().id
       if result.user_id != user_id:
         return resultTemplate.returnMessage(400, "This goal isn't your own", 'failed'), 400
       
