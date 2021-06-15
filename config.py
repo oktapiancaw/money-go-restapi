@@ -1,22 +1,21 @@
 from utils import get_env_variable
 
-POSTGRES_URL = get_env_variable('POSTGRES_URL')
-POSTGRES_USER = get_env_variable('POSTGRES_USER')
-POSTGRES_PASSWORD = get_env_variable('POSTGRES_PASSWORD')
-POSTGRES_DB = get_env_variable('POSTGRES_DB')
+POSTGRES_URL = "ec2-34-202-54-225.compute-1.amazonaws.com:5432"
+POSTGRES_USER = "ottvlzpiahcjqs"
+POSTGRES_PASSWORD = "d6f722d01bdad738c15555e5bd82e5ff52d06026d3c45830a420602fcb99b599"
+POSTGRES_DB = "dddj12epvgrndo"
 
 
 class Config(object):
     DEBUG = False
     TESTING = False
     # SQLAlchemy
-    uri_template = 'postgresql+psycopg2://{user}:{pw}@{url}/{db}'
+    uri_template = 'postgres://{user}:{pw}@{url}/{db}'
     SQLALCHEMY_DATABASE_URI = uri_template.format(
         user=POSTGRES_USER,
         pw=POSTGRES_PASSWORD,
         url=POSTGRES_URL,
         db=POSTGRES_DB)
-
 
     # Silence the deprecation warning
     SQLALCHEMY_TRACK_MODIFICATIONS = False
